@@ -1,0 +1,38 @@
+name: iraqi_license_plate
+description: >-
+  Photoreal Iraqi vehicle registration plates for Flutter — car, motorcycle,
+  European and legacy Arabic blanks — with the governorate and category data
+  model behind them.
+version: 0.2.0
+
+repository: https://github.com/Abojawdat/plate-number-service
+issue_tracker: https://github.com/Abojawdat/plate-number-service/issues
+
+topics:
+  - iraq
+  - license-plate
+  - arabic
+  - vehicles
+
+screenshots:
+  - description: A car plate front and back — the reverse stamped through bare metal.
+    path: render/01_front_and_back.png
+  - description: The eight categories, from private through to the Ministry of Defence.
+    path: render/02_categories.png
+  - description: The car, European, motorcycle, Kurdistan and legacy Arabic blanks.
+    path: render/03_formats.png
+  - description: One plate turning through a full revolution onto its stamped reverse.
+    path: render/06_spin.gif
+
+environment:
+  sdk: ^3.7.0
+  flutter: ">=3.29.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,0 +1,80 @@
+name: Publish to pub.dev
+
+# Releases are cut by tagging main. Merging dev into main does not publish on
+# its own — a merge that turned out to be wrong is easy to fix, a publish is
+# not: a version on pub.dev can be retracted for seven days and never deleted.
+#
+# To release:
+#   git checkout main && git merge dev
+#   git tag v0.1.0 && git push origin main --tags
+#
+# The tag must match the `version:` in pubspec.yaml.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+
+    # Required for pub.dev's OIDC authentication. Without it the publish step
+    # has no credentials and fails.
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Check the tag matches pubspec version
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pubspec=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          if [ "$tag" != "$pubspec" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match pubspec version $pubspec."
+            exit 1
+          fi
+          echo "version=$pubspec" >> "$GITHUB_OUTPUT"
+
+      # A version on pub.dev can be retracted for seven days but never deleted,
+      # so re-publishing one is not something to discover halfway through. Ask
+      # pub.dev first and stop cleanly if this version is already up — which is
+      # exactly what happens when an already-published release gets tagged.
+      - name: Skip if this version is already published
+        id: published
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          if curl -sf "https://pub.dev/api/packages/iraqi_license_plate" \
+              | grep -q "\"version\":\"$version\""; then
+            echo "$version is already on pub.dev — nothing to do."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Publishing $version."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Analyse
+        if: steps.published.outputs.exists == 'false'
+        run: flutter analyze --fatal-infos
+
+      - name: Test
+        if: steps.published.outputs.exists == 'false'
+        run: flutter test
+
+      - name: Publish
+        if: steps.published.outputs.exists == 'false'
+        run: |
+          # Same reason as the CI workflow: the runner's Flutter SDK rewrites
+          # the analysis_options.yaml files during setup, and pub refuses to
+          # publish from a tree it considers dirty. Restore them so the tag is
+          # published exactly as committed.
+          git checkout -- .
+          dart pub publish --force
